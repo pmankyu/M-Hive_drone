@@ -1,0 +1,12 @@
+.cproject
+.mxproject
+.project
+Debug/
+Drivers/
+Final. DIY Drone Course Finished Debug.launch
+Final. DIY Drone Course Finished.ioc
+STM32F405RGTX_FLASH.ld
+STM32F405RGTX_RAM.ld
+test.cfg
+.settings/language.settings.xml
+Startup/startup_stm32f405rgtx.s

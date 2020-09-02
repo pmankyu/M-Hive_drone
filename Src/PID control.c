@@ -33,6 +33,28 @@ PIDSingle yaw_rate;
 #define OUTER_DERIV_FILT_ENABLE 1
 #define INNER_DERIV_FILT_ENABLE 1
 
+float PID_angle(PIDDouble* axis, float set_point_angle, float angle/*BNO080 Rotation Angle*/)
+{
+	axis->out.reference = set_point_angle;	//Set point of outer PID control
+	axis->out.meas_value = angle;			//BNO080 rotation angle
+	axis->out.error = axis->out.reference - axis->out.meas_value;	//Define error of outer loop
+
+	axis->out.p_result = axis->out.error * axis->out.kp;			//Calculate P result of outer loop
+
+	axis->out.d_result = (axis->out.error_prev - axis->out.error) * axis->out.kd;
+
+	axis->out.pid_result = axis->out.p_result + axis->out.d_result;  //Calculate PID result of outer loop
+
+	axis->out.error_prev = axis->out.error; // D 계산을 위한 이전 error 값 저장
+
+	return axis->out.pid_result;
+}
+
+void PID_rate(PIDDouble* axis, float set_point_angle, float rate)
+{
+	axis->in.pid_result = set_point_angle;
+}
+
 void Double_Roll_Pitch_PID_Calculation(PIDDouble* axis, float set_point_angle, float angle/*BNO080 Rotation Angle*/, float rate/*ICM-20602 Angular Rate*/)
 {
 	/*********** Double PID Outer Begin (Roll and Pitch Angular Position Control) *************/

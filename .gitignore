@@ -11,3 +11,4 @@ test.cfg
 .settings/language.settings.xml
 Startup/startup_stm32f405rgtx.s
 vscode_prj.code-workspace
+vscode_project.code-workspace

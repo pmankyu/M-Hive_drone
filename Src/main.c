@@ -91,7 +91,7 @@ float batVolt;
 unsigned char failsafe_flag = 0;
 unsigned char low_bat_flag = 0;
 
-float ref_roll_filt, ref_pitch_filt;
+float ref_roll_filt, ref_pitch_filt, ref_throttle_filt, pre_ref_throttle_filt;
 float roll_pid_angle_result;
 float pitch_pid_angle_result;
 /* USER CODE END PV */
@@ -130,8 +130,8 @@ int main(void)
 	unsigned char iBus_rx_cnt = 0;
 	unsigned short ccr1, ccr2, ccr3, ccr4;
 
-	float roll_heading_reference;
-	float pitch_heading_reference;
+	float roll_heading_reference = 0;
+	float pitch_heading_reference = 0;
 	float yaw_heading_reference;
 
   /* USER CODE END 1 */
@@ -422,21 +422,21 @@ int main(void)
 
   LL_TIM_CC_DisableChannel(TIM3, LL_TIM_CHANNEL_CH4);
 
-  roll.in.kp = 100;
+  roll.in.kp = 0;
   	roll.in.ki = 0;
   	roll.in.kd = 0;
 
-  	roll.out.kp = 45;
-  	roll.out.ki = 0;
-  	roll.out.kd = 4;
+  	roll.out.kp = 5;
+  	roll.out.ki = 0.005;
+  	roll.out.kd = 60;
 
-  	pitch.in.kp = 100;
+  	pitch.in.kp = 0;
   	pitch.in.ki = 0;
   	pitch.in.kd = 0;
 
-  	pitch.out.kp = 45;
-  	pitch.out.ki = 0;
-  	pitch.out.kd = 4;
+  	pitch.out.kp = 7;
+  	pitch.out.ki = 0.005;
+  	pitch.out.kd = 60;
 
   	yaw_heading.kp = 50;
   	yaw_heading.ki = 0;
@@ -470,27 +470,33 @@ int main(void)
 		  if(iBus.LV < 1030 || motor_arming_flag == 0)
 		  {
 			  Reset_All_PID_Integrator();
+
 		  }
+
+		  if(ref_throttle_filt > pre_ref_throttle_filt) ref_throttle_filt = (iBus.LV - 1000) * 10;
+		  else ref_throttle_filt = ref_throttle_filt * 0.9 + (iBus.LV - 1000) * 10 * 0.1;
 
 		  if(iBus.LH < 1485 || iBus.LH > 1515)
 		  {
 			  yaw_heading_reference = BNO080_Yaw;
 			  Single_Yaw_Rate_PID_Calculation(&yaw_rate, (iBus.LH - 1500), ICM20602.gyro_z);
 
-			  ccr1 = 10500 + 500 + (iBus.LV - 1000) * 10 - pitch.in.pid_result + roll.in.pid_result - yaw_rate.pid_result;
-			  ccr2 = 10500 + 500 + (iBus.LV - 1000) * 10 + pitch.in.pid_result + roll.in.pid_result + yaw_rate.pid_result;
-			  ccr3 = 10500 + 500 + (iBus.LV - 1000) * 10 + pitch.in.pid_result - roll.in.pid_result - yaw_rate.pid_result;
-			  ccr4 = 10500 + 500 + (iBus.LV - 1000) * 10 - pitch.in.pid_result - roll.in.pid_result + yaw_rate.pid_result;
+			  ccr1 = 10500 + 500 + ref_throttle_filt - pitch.in.pid_result + roll.in.pid_result - yaw_rate.pid_result;
+			  ccr2 = 10500 + 500 + ref_throttle_filt + pitch.in.pid_result + roll.in.pid_result + yaw_rate.pid_result;
+			  ccr3 = 10500 + 500 + ref_throttle_filt + pitch.in.pid_result - roll.in.pid_result - yaw_rate.pid_result;
+			  ccr4 = 10500 + 500 + ref_throttle_filt - pitch.in.pid_result - roll.in.pid_result + yaw_rate.pid_result;
 		  }
 		  else
 		  {
 			  Single_Yaw_Heading_PID_Calculation(&yaw_heading, yaw_heading_reference, BNO080_Yaw, ICM20602.gyro_z);
 
-			  ccr1 = 10500 + 500 + (iBus.LV - 1000) * 10 - pitch.in.pid_result + roll.in.pid_result - yaw_heading.pid_result;
-			  ccr2 = 10500 + 500 + (iBus.LV - 1000) * 10 + pitch.in.pid_result + roll.in.pid_result + yaw_heading.pid_result;
-			  ccr3 = 10500 + 500 + (iBus.LV - 1000) * 10 + pitch.in.pid_result - roll.in.pid_result - yaw_heading.pid_result;
-			  ccr4 = 10500 + 500 + (iBus.LV - 1000) * 10 - pitch.in.pid_result - roll.in.pid_result + yaw_heading.pid_result;
+			  ccr1 = 10500 + 500 + ref_throttle_filt - pitch.in.pid_result + roll.in.pid_result - yaw_heading.pid_result;
+			  ccr2 = 10500 + 500 + ref_throttle_filt + pitch.in.pid_result + roll.in.pid_result + yaw_heading.pid_result;
+			  ccr3 = 10500 + 500 + ref_throttle_filt + pitch.in.pid_result - roll.in.pid_result - yaw_heading.pid_result;
+			  ccr4 = 10500 + 500 + ref_throttle_filt - pitch.in.pid_result - roll.in.pid_result + yaw_heading.pid_result;
 		  }
+
+		  pre_ref_throttle_filt = ref_throttle_filt;
 
 		  //printf("%f\t%f\n", BNO080_Pitch, ICM20602.gyro_x);
 		  //printf("%f\t%f\n", BNO080_Roll, ICM20602.gyro_y);
@@ -502,8 +508,8 @@ int main(void)
 		  if(iBus.LV < 1010)
 		  {
 			  motor_arming_flag = 1;
-			  roll_heading_reference = BNO080_Roll;
-			  pitch_heading_reference = BNO080_Pitch;
+			  //roll_heading_reference = BNO080_Roll;
+			  //pitch_heading_reference = BNO080_Pitch;
 			  yaw_heading_reference = BNO080_Yaw;
 		  }
 		  else
@@ -795,8 +801,15 @@ int main(void)
 			  //ref_roll_filt = ref_roll_filt*0.7 + (iBus.RH-1500)*0.1f*0.3;
 			  //ref_pitch_filt = ref_pitch_filt*0.7 + (iBus.RV-1500)*0.1f*0.3;
 
-			  ref_roll_filt = roll_heading_reference + (iBus.RH-1500)*0.1f;
-			  ref_pitch_filt = pitch_heading_reference +(iBus.RV-1500)*0.1f;
+			  ref_roll_filt = roll_heading_reference + ((iBus.RH-1500) - roll_heading_reference)*0.5f;
+			  ref_pitch_filt = pitch_heading_reference +((iBus.RV-1500) - pitch_heading_reference)*0.1f;
+
+			  if(iBus.LV < 1030 || motor_arming_flag == 0)
+			  {
+				  // trim setting
+				  roll_heading_reference = (iBus.RH-1500);
+				  pitch_heading_reference = (iBus.RV-1500);
+			  }
 
 			  if(iBus_isActiveFailsafe(&iBus) == 1)
 			  {

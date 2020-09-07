@@ -29,9 +29,12 @@ PIDDouble pitch;
 PIDSingle yaw_heading;
 PIDSingle yaw_rate;
 
-#define DT 0.001f
+#define DT 0.04f
 #define OUTER_DERIV_FILT_ENABLE 1
 #define INNER_DERIV_FILT_ENABLE 1
+
+#define OUT_ERR_SUM_MAX ((10 * axis->out.kp)/axis->out.ki)
+#define OUT_I_ERR_MIN -OUT_ERR_SUM_MAX
 
 float PID_angle(PIDDouble* axis, float set_point_angle, float angle/*BNO080 Rotation Angle*/)
 {
@@ -41,9 +44,17 @@ float PID_angle(PIDDouble* axis, float set_point_angle, float angle/*BNO080 Rota
 
 	axis->out.p_result = axis->out.error * axis->out.kp;			//Calculate P result of outer loop
 
-	axis->out.d_result = (axis->out.error_prev - axis->out.error) * axis->out.kd;
+	axis->out.error_sum = axis->out.error_sum + axis->out.error * DT;	//Define summation of outer loop
 
-	axis->out.pid_result = axis->out.p_result + axis->out.d_result;  //Calculate PID result of outer loop
+
+	if(axis->out.error_sum > OUT_ERR_SUM_MAX) axis->out.error_sum = OUT_ERR_SUM_MAX;
+	else if(axis->out.error_sum < OUT_I_ERR_MIN) axis->out.error_sum = OUT_I_ERR_MIN;
+
+	axis->out.i_result = axis->out.error_sum * axis->out.ki;
+
+	axis->out.d_result = ((axis->out.error - axis->out.error_prev)/DT) * axis->out.kd;
+
+	axis->out.pid_result = axis->out.p_result + axis->out.i_result + axis->out.d_result;  //Calculate PID result of outer loop
 
 	axis->out.error_prev = axis->out.error; // D 계산을 위한 이전 error 값 저장
 
@@ -65,8 +76,8 @@ void Double_Roll_Pitch_PID_Calculation(PIDDouble* axis, float set_point_angle, f
 	axis->out.p_result = axis->out.error * axis->out.kp;			//Calculate P result of outer loop
 
 	axis->out.error_sum = axis->out.error_sum + axis->out.error * DT;	//Define summation of outer loop
-#define OUT_ERR_SUM_MAX 500
-#define OUT_I_ERR_MIN -OUT_ERR_SUM_MAX
+//#define OUT_ERR_SUM_MAX 500
+//#define OUT_I_ERR_MIN -OUT_ERR_SUM_MAX
 	if(axis->out.error_sum > OUT_ERR_SUM_MAX) axis->out.error_sum = OUT_ERR_SUM_MAX;
 	else if(axis->out.error_sum < OUT_I_ERR_MIN) axis->out.error_sum = OUT_I_ERR_MIN;
 	axis->out.i_result = axis->out.error_sum * axis->out.ki;			//Calculate I result of outer loop

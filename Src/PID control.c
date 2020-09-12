@@ -33,7 +33,7 @@ PIDSingle yaw_rate;
 #define OUTER_DERIV_FILT_ENABLE 1
 #define INNER_DERIV_FILT_ENABLE 1
 
-#define OUT_ERR_SUM_MAX ((10 * axis->out.kp)/axis->out.ki)
+#define OUT_ERR_SUM_MAX ((20 * axis->out.kp)/axis->out.ki)
 #define OUT_I_ERR_MIN -OUT_ERR_SUM_MAX
 
 float PID_angle(PIDDouble* axis, float set_point_angle, float angle/*BNO080 Rotation Angle*/)
@@ -44,26 +44,30 @@ float PID_angle(PIDDouble* axis, float set_point_angle, float angle/*BNO080 Rota
 
 	axis->out.p_result = axis->out.error * axis->out.kp;			//Calculate P result of outer loop
 
-	axis->out.error_sum = axis->out.error_sum + axis->out.error * DT;	//Define summation of outer loop
-
+	axis->out.error_sum = axis->out.error_sum + axis->out.error;	//Define summation of outer loop
 
 	if(axis->out.error_sum > OUT_ERR_SUM_MAX) axis->out.error_sum = OUT_ERR_SUM_MAX;
 	else if(axis->out.error_sum < OUT_I_ERR_MIN) axis->out.error_sum = OUT_I_ERR_MIN;
 
 	axis->out.i_result = axis->out.error_sum * axis->out.ki;
 
-	axis->out.d_result = ((axis->out.error - axis->out.error_prev)/DT) * axis->out.kd;
+	//axis->out.d_result = ((axis->out.error - axis->out.error_prev)/DT) * axis->out.kd;
 
-	axis->out.pid_result = axis->out.p_result + axis->out.i_result + axis->out.d_result;  //Calculate PID result of outer loop
+	//axis->out.pid_result = axis->out.p_result + axis->out.i_result + axis->out.d_result;  //Calculate PID result of outer loop
 
 	axis->out.error_prev = axis->out.error; // D 계산을 위한 이전 error 값 저장
 
-	return axis->out.pid_result;
+	return axis->out.error;
 }
 
 void PID_rate(PIDDouble* axis, float set_point_angle, float rate)
 {
-	axis->in.pid_result = set_point_angle;
+	//axis->in.pid_result = set_point_angle;
+	axis->out.error_deriv = -set_point_angle;							//Define derivative of outer loop (rate = ICM-20602 Angular Rate)
+
+	axis->out.d_result = axis->out.error_deriv * axis->out.kd;			//Calculate D result of outer loop
+
+	axis->in.pid_result = axis->out.p_result + axis->out.i_result + axis->out.d_result;  //Calculate PID result of outer loop
 }
 
 void Double_Roll_Pitch_PID_Calculation(PIDDouble* axis, float set_point_angle, float angle/*BNO080 Rotation Angle*/, float rate/*ICM-20602 Angular Rate*/)

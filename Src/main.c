@@ -427,16 +427,16 @@ int main(void)
   	roll.in.kd = 0;
 
   	roll.out.kp = 5;
-  	roll.out.ki = 0.005;
-  	roll.out.kd = 60;
+  	roll.out.ki = 0;
+  	roll.out.kd = 2;
 
   	pitch.in.kp = 0;
   	pitch.in.ki = 0;
   	pitch.in.kd = 0;
 
   	pitch.out.kp = 7;
-  	pitch.out.ki = 0.005;
-  	pitch.out.kd = 60;
+  	pitch.out.ki = 0;
+  	pitch.out.kd = 2;
 
   	yaw_heading.kp = 50;
   	yaw_heading.ki = 0;
